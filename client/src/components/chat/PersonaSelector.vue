@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { usePersonaStore } from '@/stores/persona'
 import { useSettingsStore } from '@/stores/settings'
 import type { Persona } from '@shared/types'
+import { usePopup } from '@/composables/usePopup'
 
 const personaStore = usePersonaStore()
 const settingsStore = useSettingsStore()
-const isOpen = ref(false)
+const { isOpen, open, close } = usePopup()
 
 onMounted(async () => {
   await personaStore.loadPersonas()
@@ -20,12 +21,12 @@ const activePersona = computed<Persona | null>(() => {
 
 async function selectPersona(persona: Persona) {
   await settingsStore.updateSettings({ activePersonaId: persona.id })
-  isOpen.value = false
+  close()
 }
 
 async function clearPersona() {
   await settingsStore.updateSettings({ activePersonaId: null })
-  isOpen.value = false
+  close()
 }
 </script>
 
@@ -33,7 +34,7 @@ async function clearPersona() {
   <div class="relative">
     <button
       class="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-bg-tertiary"
-      @click="isOpen = !isOpen"
+      @click="isOpen ? close() : open()"
     >
       <div
         v-if="activePersona"
@@ -57,6 +58,7 @@ async function clearPersona() {
     <div
       v-if="isOpen"
       class="absolute left-0 top-full z-50 mt-1 max-h-80 w-64 overflow-y-auto rounded-lg border border-border bg-bg-secondary shadow-lg"
+      @mousedown.stop
     >
       <div class="border-b border-border p-2">
         <button

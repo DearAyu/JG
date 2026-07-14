@@ -49,7 +49,7 @@ function buildPart(type: PromptPartType, label: string, content: string): Prompt
     content: content.trim(),
     enabled: true,
     order: 0,
-    tokenCount: tokenCounter.estimate(content),
+    tokenCount: tokenCounter.count(content),
   }
 }
 
@@ -197,7 +197,7 @@ export function buildPrompt(context: PromptBuildContext): PromptPreview {
     finalMessages.push({ role: 'system', content: character.post_history_instructions })
   }
 
-  const totalTokens = tokenCounter.estimateMessages(finalMessages)
+  const totalTokens = tokenCounter.countMessages(finalMessages)
   const truncated = historyBudget < 0 || messages.length > historyMessages.length
 
   // Build author note part for display
@@ -246,7 +246,7 @@ function buildChatHistory(
     const msg = messages[i]
     if (msg.role === 'system') continue
 
-    const msgTokens = tokenCounter.estimateMessage(msg.content, msg.role)
+    const msgTokens = tokenCounter.countMessage(msg.content, msg.role)
     if (usedTokens + msgTokens > tokenBudget) break
 
     reversed.unshift(msg)

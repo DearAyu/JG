@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useCharacterStore } from '@/stores/character'
 import { useChatStore } from '@/stores/chat'
 import type { Character } from '@shared/types'
+import { usePopup } from '@/composables/usePopup'
 
 const characterStore = useCharacterStore()
 const chatStore = useChatStore()
 
-const isOpen = ref(false)
+const { isOpen, open, close } = usePopup()
 
 onMounted(async () => {
   await characterStore.loadCharacters()
@@ -24,7 +25,7 @@ async function selectCharacter(char: Character) {
     await chatStore.linkCharacter(chatStore.activeSession.id, char.id)
   }
   characterStore.selectCharacter(char)
-  isOpen.value = false
+  close()
 }
 
 function clearCharacter() {
@@ -32,7 +33,7 @@ function clearCharacter() {
     chatStore.linkCharacter(chatStore.activeSession.id, '')
   }
   characterStore.selectCharacter(null)
-  isOpen.value = false
+  close()
 }
 </script>
 
@@ -41,7 +42,7 @@ function clearCharacter() {
     <!-- Current character display -->
     <button
       class="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-bg-tertiary"
-      @click="isOpen = !isOpen"
+      @click="isOpen ? close() : open()"
     >
       <div
         v-if="currentCharacter"
@@ -65,6 +66,7 @@ function clearCharacter() {
     <div
       v-if="isOpen"
       class="absolute left-0 top-full z-50 mt-1 max-h-80 w-64 overflow-y-auto rounded-lg border border-border bg-bg-secondary shadow-lg"
+      @mousedown.stop
     >
       <div class="border-b border-border p-2">
         <button

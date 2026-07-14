@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import connectionsRouter from './routes/connections.js'
 import settingsRouter from './routes/settings.js'
@@ -11,9 +12,16 @@ import worldinfoRouter from './routes/worldinfo.js'
 import personasRouter from './routes/personas.js'
 import presetsRouter from './routes/presets.js'
 import extensionsRouter from './routes/extensions.js'
+import backupRouter from './routes/backup.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+const dataDir = path.resolve(__dirname, '../../data')
+const dirs = ['characters/avatars', 'chats', 'worldinfo', 'personas', 'presets', 'avatars', 'extensions']
+for (const dir of dirs) {
+  fs.mkdirSync(path.join(dataDir, dir), { recursive: true })
+}
 
 const app = express()
 const PORT = 3000
@@ -35,6 +43,7 @@ app.use('/api/worldinfo', worldinfoRouter)
 app.use('/api/personas', personasRouter)
 app.use('/api/presets', presetsRouter)
 app.use('/api/extensions', extensionsRouter)
+app.use('/api/backup', backupRouter)
 
 if (process.env.NODE_ENV === 'production') {
   const clientDist = path.resolve(__dirname, '../../client/dist')

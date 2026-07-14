@@ -3,10 +3,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { usePresetStore } from '@/stores/preset'
 import { useChatStore } from '@/stores/chat'
 import type { GenerationPreset } from '@shared/types'
+import { usePopup } from '@/composables/usePopup'
 
 const presetStore = usePresetStore()
 const chatStore = useChatStore()
-const isOpen = ref(false)
+const { isOpen, open, close } = usePopup()
 
 onMounted(async () => {
   await presetStore.loadPresets()
@@ -31,7 +32,7 @@ async function selectPreset(preset: GenerationPreset) {
   if (chatStore.activeSession) {
     await chatStore.linkPreset(chatStore.activeSession.id, preset.id)
   }
-  isOpen.value = false
+  close()
 }
 
 async function clearPreset() {
@@ -39,7 +40,7 @@ async function clearPreset() {
   if (chatStore.activeSession) {
     await chatStore.linkPreset(chatStore.activeSession.id, null)
   }
-  isOpen.value = false
+  close()
 }
 </script>
 
@@ -47,7 +48,7 @@ async function clearPreset() {
   <div class="relative">
     <button
       class="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-bg-tertiary"
-      @click="isOpen = !isOpen"
+      @click="isOpen ? close() : open()"
       title="生成预设"
     >
       <span v-if="activePreset" class="text-text-primary">⚙ {{ activePreset.name }}</span>
@@ -60,6 +61,7 @@ async function clearPreset() {
     <div
       v-if="isOpen"
       class="absolute right-0 top-full z-50 mt-1 max-h-72 w-56 overflow-y-auto rounded-lg border border-border bg-bg-secondary shadow-lg"
+      @mousedown.stop
     >
       <div class="border-b border-border p-2">
         <button

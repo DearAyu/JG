@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useChatStore } from '@/stores/chat'
+import { usePopup } from '@/composables/usePopup'
 
 const chatStore = useChatStore()
-const isOpen = ref(false)
+const { isOpen, open, close } = usePopup()
 const localContent = ref('')
 const localDepth = ref(4)
 const localPosition = ref<'before' | 'after'>('before')
@@ -36,7 +37,7 @@ function onInput() {
     <button
       class="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs text-text-secondary hover:bg-bg-tertiary"
       :class="{ 'text-accent': chatStore.authorNote.content }"
-      @click="isOpen = !isOpen"
+      @click="isOpen ? close() : open()"
       title="Author's Note"
     >
       📝
@@ -47,10 +48,11 @@ function onInput() {
     <div
       v-if="isOpen"
       class="absolute right-0 top-full z-50 mt-1 w-80 rounded-lg border border-border bg-bg-secondary p-4 shadow-lg"
+      @mousedown.stop
     >
       <div class="mb-2 flex items-center justify-between">
         <span class="text-sm font-medium text-text-primary">Author's Note</span>
-        <button class="text-text-secondary hover:text-text-primary" @click="isOpen = false">
+        <button class="text-text-secondary hover:text-text-primary" @click="close()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>

@@ -5,6 +5,7 @@ import { useCharacterStore } from '@/stores/character'
 import { useSettingsStore } from '@/stores/settings'
 import { useWorldInfoStore } from '@/stores/worldinfo'
 import { usePersonaStore } from '@/stores/persona'
+import { usePopup } from '@/composables/usePopup'
 import { buildPrompt } from '@/services/prompt-builder'
 import type { WorldBookEntry } from '@shared/types'
 
@@ -40,7 +41,7 @@ watch(
   { immediate: true }
 )
 
-const isOpen = ref(false)
+const { isOpen, open, close } = usePopup()
 const activeTab = ref<'parts' | 'messages'>('parts')
 
 const currentPersona = computed(() => {
@@ -86,7 +87,7 @@ function partColor(type: string): string {
     <!-- Toggle button -->
     <button
       class="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs text-text-secondary hover:bg-bg-tertiary"
-      @click="isOpen = !isOpen"
+      @click="isOpen ? close() : open()"
       title="提示词预览"
     >
       🔍 预览
@@ -97,6 +98,7 @@ function partColor(type: string): string {
       <div
         v-if="isOpen"
         class="fixed bottom-20 right-4 z-40 flex h-[60vh] w-[500px] flex-col rounded-lg border border-border bg-bg-secondary shadow-2xl"
+        @mousedown.stop
       >
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-border px-4 py-3">
@@ -109,7 +111,7 @@ function partColor(type: string): string {
               已截断
             </span>
           </div>
-          <button class="text-text-secondary hover:text-text-primary" @click="isOpen = false">
+          <button class="text-text-secondary hover:text-text-primary" @click="close()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>

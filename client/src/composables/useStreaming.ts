@@ -52,6 +52,8 @@ export function useStreaming() {
       const decoder = new TextDecoder()
       let buffer = ''
 
+      let finished = false
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
@@ -71,8 +73,10 @@ export function useStreaming() {
               streamingContent.value += chunk.content
               onToken(chunk.content)
             } else if (chunk.type === 'done') {
+              finished = true
               onDone(streamingContent.value)
             } else if (chunk.type === 'error') {
+              finished = true
               onError(chunk.message || 'Unknown error')
             }
           } catch {
@@ -81,7 +85,7 @@ export function useStreaming() {
         }
       }
 
-      if (streamingContent.value) {
+      if (!finished && streamingContent.value) {
         onDone(streamingContent.value)
       }
     } catch (err) {

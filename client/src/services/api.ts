@@ -179,4 +179,12 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(state),
     }),
+
+  // Backup
+  downloadBackup: () => `${baseUrl}/backup`,
+  restoreBackup: (data: unknown) =>
+    request<{ success: boolean; message: string }>('/backup/restore', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 }

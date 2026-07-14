@@ -7,14 +7,10 @@ import { usePersonaStore } from '@/stores/persona'
 import { useExtensionStore } from '@/stores/extension'
 import { getBuiltinExtensions } from '@/extensions'
 import { useShortcuts } from '@/composables/useShortcuts'
+import { usePopup } from '@/composables/usePopup'
 import ChatMessageComp from './ChatMessage.vue'
 import ChatInput from './ChatInput.vue'
-import ChatList from './ChatList.vue'
-import CharacterSelector from './CharacterSelector.vue'
-import AuthorNote from './AuthorNote.vue'
-import PromptPreview from './PromptPreview.vue'
-import PersonaSelector from './PersonaSelector.vue'
-import PresetSelector from './PresetSelector.vue'
+import SidePanel from './SidePanel.vue'
 
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
@@ -22,7 +18,7 @@ const characterStore = useCharacterStore()
 const personaStore = usePersonaStore()
 const extStore = useExtensionStore()
 const scrollContainer = ref<HTMLDivElement | null>(null)
-const showExtActions = ref(false)
+const { isOpen: showExtActions, toggle: toggleExtActions, close: closeExtActions } = usePopup()
 
 useShortcuts()
 
@@ -51,7 +47,7 @@ const enabledActions = computed(() => {
 
 function runExtAction(extId: string, actionId: string) {
   extStore.runAction(extId, actionId)
-  showExtActions.value = false
+  closeExtActions()
 }
 const searchResults = computed(() => {
   if (!searchQuery.value.trim()) return []
@@ -131,17 +127,8 @@ function handleSwipeSelect(id: string, direction: 'prev' | 'next') {
 }
 
 async function handleBranch(id: string) {
+  if (!confirm('将从这条消息处创建分支对话，确定吗？')) return
   await chatStore.branchFromMessage(id)
-}
-
-async function handleNewChat() {
-  chatStore.clearActiveSession()
-}
-
-async function handleClearMessages() {
-  if (confirm('确定清空当前对话的所有消息吗？')) {
-    chatStore.clearMessages()
-  }
 }
 
 function scrollToMessage(idx: number) {
@@ -162,170 +149,137 @@ function handleSearchKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="flex h-full">
-    <!-- Chat list sidebar -->
-    <ChatList />
-
-    <!-- Main chat area -->
-    <div class="flex flex-1 flex-col overflow-hidden">
-      <!-- Header -->
-      <div
-        class="flex items-center justify-between border-b border-border bg-bg-secondary px-4 py-3"
-      >
+  <div class="flex h-full flex-col overflow-hidden">
+    <!-- Header -->
+    <div
+      class="flex items-center justify-between border-b border-border bg-bg-secondary px-4 py-3"
+    >
         <div class="flex items-center gap-2">
           <h2 class="text-lg font-semibold text-text-primary">
             {{ chatStore.activeSession?.title || '聊天' }}
           </h2>
-          <CharacterSelector v-if="chatStore.activeSession" />
-          <PersonaSelector v-if="chatStore.activeSession" />
-          <PresetSelector v-if="chatStore.activeSession" />
-          <span
-            v-if="settingsStore.activeConnection"
-            class="text-sm text-text-secondary"
-          >
-            · {{ settingsStore.activeConnection.name }} ·
-            {{ settingsStore.activeConnection.model }}
-          </span>
-          <span v-else class="text-sm text-red-400">未配置连接</span>
         </div>
-        <div class="flex gap-2">
-          <!-- Extension actions -->
-          <div v-if="enabledActions.length > 0" class="relative">
-            <button
-              class="rounded-lg border border-border px-3 py-1 text-xs text-text-secondary hover:bg-bg-tertiary"
-              @click="showExtActions = !showExtActions"
-              title="扩展操作"
-            >
-              🧩 扩展
-            </button>
+      <div class="flex gap-2">
+        <!-- Extension actions -->
+        <div v-if="enabledActions.length > 0" class="relative">
+          <button
+            class="rounded-lg border border-border px-3 py-1 text-xs text-text-secondary hover:bg-bg-tertiary"
+              @click="toggleExtActions"
+            title="扩展操作"
+          >
+            🧩 扩展
+          </button>
+          <div
+            v-if="showExtActions"
+            class="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-border bg-bg-secondary shadow-lg"
+            @mousedown.stop
+          >
             <div
-              v-if="showExtActions"
-              class="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-border bg-bg-secondary shadow-lg"
-              @click.self="showExtActions = false"
+              v-for="action in enabledActions"
+              :key="action.extId + action.actionId"
+              class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-tertiary"
+              @click="runExtAction(action.extId, action.actionId)"
             >
-              <div
-                v-for="action in enabledActions"
-                :key="action.extId + action.actionId"
-                class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-tertiary"
-                @click="runExtAction(action.extId, action.actionId)"
-              >
-                <span>{{ action.icon }}</span>
-                <span>{{ action.label }}</span>
-              </div>
+              <span>{{ action.icon }}</span>
+              <span>{{ action.label }}</span>
             </div>
           </div>
-
-          <button
-            class="rounded-lg border border-border px-3 py-1 text-xs text-text-secondary hover:bg-bg-tertiary"
-            @click="showSearch = !showSearch"
-            title="搜索消息 (Ctrl+F)"
-            data-search-toggle
-          >
-            🔍 搜索
-          </button>
-          <AuthorNote v-if="chatStore.activeSession" />
-          <PromptPreview v-if="chatStore.activeSession" />
-          <button
-            class="rounded-lg border border-border px-3 py-1 text-xs text-text-secondary hover:bg-bg-tertiary"
-            @click="handleNewChat"
-          >
-            + 新对话
-          </button>
-          <button
-            v-if="chatStore.messages.length > 0"
-            class="rounded-lg border border-border px-3 py-1 text-xs text-text-secondary hover:text-red-400"
-            @click="handleClearMessages"
-          >
-            清空
-          </button>
         </div>
-      </div>
 
-      <!-- Search bar -->
-      <div v-if="showSearch" class="border-b border-border bg-bg-secondary px-4 py-2">
-        <div class="mx-auto flex max-w-4xl items-center gap-2">
-          <input
-            v-model="searchQuery"
-            class="flex-1 rounded-lg border border-border bg-bg-primary px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent"
-            placeholder="搜索消息内容..."
-            @keydown="handleSearchKeydown"
-          />
-          <span v-if="searchQuery" class="text-xs text-text-secondary">
-            {{ searchResults.length }} 个结果
-          </span>
-          <button
-            class="text-text-secondary hover:text-text-primary"
-            @click="showSearch = false; searchQuery = ''"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-        <div v-if="searchResults.length > 0" class="mt-2 max-h-32 overflow-y-auto">
-          <div
-            v-for="result in searchResults.slice(0, 10)"
-            :key="result.message.id"
-            class="cursor-pointer truncate rounded px-2 py-1 text-xs text-text-secondary hover:bg-bg-tertiary"
-            @click="scrollToMessage(result.index)"
-          >
-            <span class="text-text-primary">{{ result.message.role }}:</span>
-            {{ result.message.content.slice(0, 80) }}...
-          </div>
-        </div>
-      </div>
-
-      <!-- Messages -->
-      <div ref="scrollContainer" class="flex-1 overflow-y-auto py-4">
-        <!-- Empty state -->
-        <div
-          v-if="chatStore.messages.length === 0"
-          class="flex h-full flex-col items-center justify-center gap-4"
+        <button
+          class="rounded-lg border border-border px-3 py-1 text-xs text-text-secondary hover:bg-bg-tertiary"
+          @click="showSearch = !showSearch"
+          title="搜索消息 (Ctrl+F)"
+          data-search-toggle
         >
-          <div class="text-6xl">💬</div>
-          <p class="text-text-secondary">
-            {{ hasConnection ? '开始输入消息与 AI 对话吧！' : '请先前往设置配置 API 连接' }}
-          </p>
-        </div>
-
-        <!-- Messages list -->
-        <div v-else class="mx-auto max-w-4xl">
-          <div v-for="(msg, idx) in chatStore.messages" :key="msg.id" :data-msg-idx="idx">
-          <ChatMessageComp
-            :message="msg"
-            :character="currentCharacter"
-            :avatar-url="currentCharacter?.id ? characterStore.avatarUrl(currentCharacter.id) : undefined"
-            :persona-name="currentPersona?.name"
-            :persona-avatar-url="currentPersona?.id && currentPersona.hasAvatar ? personaStore.avatarUrl(currentPersona.id) : undefined"
-            :is-generating="
-              msg.role === 'assistant' &&
-              chatStore.isGenerating &&
-              idx === chatStore.messages.length - 1
-            "
-            @regenerate="handleRegenerate"
-            @delete="handleDelete"
-            @edit="handleEdit"
-            @select-swipe="handleSwipeSelect"
-            @branch="handleBranch"
-          />
-          </div>
-        </div>
+          🔍 搜索
+        </button>
+        <SidePanel v-if="chatStore.activeSession" />
       </div>
-
-      <!-- Error -->
-      <div
-        v-if="chatStore.error"
-        class="mx-4 mb-2 rounded-lg bg-red-900/30 px-4 py-2 text-sm text-red-400"
-      >
-        {{ chatStore.error }}
-      </div>
-
-      <!-- Input -->
-      <ChatInput
-        :is-generating="chatStore.isGenerating"
-        @send="handleSend"
-        @stop="handleStop"
-      />
     </div>
+
+    <!-- Search bar -->
+    <div v-if="showSearch" class="border-b border-border bg-bg-secondary px-4 py-2">
+      <div class="mx-auto flex max-w-4xl items-center gap-2">
+        <input
+          v-model="searchQuery"
+          class="flex-1 rounded-lg border border-border bg-bg-primary px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent"
+          placeholder="搜索消息内容..."
+          @keydown="handleSearchKeydown"
+        />
+        <span v-if="searchQuery" class="text-xs text-text-secondary">
+          {{ searchResults.length }} 个结果
+        </span>
+        <button
+          class="text-text-secondary hover:text-text-primary"
+          @click="showSearch = false; searchQuery = ''"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div v-if="searchResults.length > 0" class="mt-2 max-h-32 overflow-y-auto">
+        <div
+          v-for="result in searchResults.slice(0, 10)"
+          :key="result.message.id"
+          class="cursor-pointer truncate rounded px-2 py-1 text-xs text-text-secondary hover:bg-bg-tertiary"
+          @click="scrollToMessage(result.index)"
+        >
+          <span class="text-text-primary">{{ result.message.role }}:</span>
+          {{ result.message.content.slice(0, 80) }}...
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div ref="scrollContainer" class="flex-1 overflow-y-auto py-4">
+      <div
+        v-if="chatStore.messages.length === 0"
+        class="flex h-full flex-col items-center justify-center gap-4"
+      >
+        <div class="text-6xl">💬</div>
+        <p class="text-text-secondary">
+          {{ hasConnection ? '开始输入消息与 AI 对话吧！' : '请先前往设置配置 API 连接' }}
+        </p>
+      </div>
+
+      <div v-else class="mx-auto max-w-4xl">
+        <div v-for="(msg, idx) in chatStore.messages" :key="msg.id" :data-msg-idx="idx">
+        <ChatMessageComp
+          :message="msg"
+          :character="msg.characterId ? characterStore.characters.find(c => c.id === msg.characterId) ?? currentCharacter : currentCharacter"
+          :avatar-url="(msg.characterId || currentCharacter?.id) ? characterStore.avatarUrl(msg.characterId || currentCharacter!.id) : undefined"
+          :persona-name="currentPersona?.name"
+          :persona-avatar-url="currentPersona?.id && currentPersona.hasAvatar ? personaStore.avatarUrl(currentPersona.id) : undefined"
+          :is-generating="
+            msg.role === 'assistant' &&
+            chatStore.isGenerating &&
+            idx === chatStore.messages.length - 1
+          "
+          @regenerate="handleRegenerate"
+          @delete="handleDelete"
+          @edit="handleEdit"
+          @select-swipe="handleSwipeSelect"
+          @branch="handleBranch"
+        />
+        </div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div
+      v-if="chatStore.error"
+      class="mx-4 mb-2 rounded-lg bg-red-900/30 px-4 py-2 text-sm text-red-400"
+    >
+      {{ chatStore.error }}
+    </div>
+
+    <!-- Input -->
+    <ChatInput
+      :is-generating="chatStore.isGenerating"
+      @send="handleSend"
+      @stop="handleStop"
+    />
   </div>
 </template>

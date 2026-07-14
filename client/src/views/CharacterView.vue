@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useCharacterStore } from '@/stores/character'
 import { useChatStore } from '@/stores/chat'
 import type { Character } from '@shared/types'
@@ -7,6 +8,7 @@ import CharacterEditor from '@/components/character/CharacterEditor.vue'
 
 const characterStore = useCharacterStore()
 const chatStore = useChatStore()
+const router = useRouter()
 
 const showEditor = ref(false)
 const editingCharacter = ref<Partial<Character> | null>(null)
@@ -97,7 +99,7 @@ async function startChatWithCharacter(char: Character) {
     await chatStore.saveMessages()
   }
   // Navigate to chat
-  window.location.hash = '#/chat'
+  router.push('/chat')
 }
 
 function onSaved() {

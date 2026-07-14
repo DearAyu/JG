@@ -143,6 +143,7 @@ function handleExportSettings() {
 }
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const backupFileInput = ref<HTMLInputElement | null>(null)
 
 function handleImportSettingsClick() {
   fileInput.value?.click()
@@ -158,6 +159,42 @@ async function handleImportSettings(e: Event) {
     await settingsStore.updateSettings(data)
   } catch (err) {
     alert(`导入失败: ${(err as Error).message}`)
+  }
+  target.value = ''
+}
+
+function handleBackupAll() {
+  const a = document.createElement('a')
+  a.href = '/api/backup'
+  a.download = `jg-backup-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+}
+
+async function handleRestoreBackup(e: Event) {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  if (!confirm('恢复数据将覆盖当前所有数据，确定吗？')) {
+    target.value = ''
+    return
+  }
+  try {
+    const text = await file.text()
+    const data = JSON.parse(text)
+    const result = await fetch('/api/backup/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const json = await result.json()
+    if (json.success) {
+      alert('数据恢复成功，请刷新页面')
+      window.location.reload()
+    } else {
+      alert(json.message || '恢复失败')
+    }
+  } catch (err) {
+    alert(`恢复失败: ${(err as Error).message}`)
   }
   target.value = ''
 }
@@ -205,6 +242,19 @@ const typeLabels: Record<string, string> = {
         <h1 class="text-2xl font-bold text-text-primary">设置</h1>
         <div class="flex gap-2">
           <input ref="fileInput" type="file" accept=".json" class="hidden" @change="handleImportSettings" />
+          <input ref="backupFileInput" type="file" accept=".json" class="hidden" @change="handleRestoreBackup" />
+          <button
+            class="rounded-lg border border-border px-3 py-1.5 text-xs text-text-secondary hover:bg-bg-tertiary"
+            @click="handleBackupAll"
+          >
+            📦 备份全部
+          </button>
+          <button
+            class="rounded-lg border border-border px-3 py-1.5 text-xs text-text-secondary hover:bg-bg-tertiary"
+            @click="backupFileInput?.click()"
+          >
+            📥 恢复全部
+          </button>
           <button
             class="rounded-lg border border-border px-3 py-1.5 text-xs text-text-secondary hover:bg-bg-tertiary"
             @click="handleImportSettingsClick"

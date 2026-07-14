@@ -295,13 +295,20 @@ export const useChatStore = defineStore('chat', () => {
 
     error.value = null
 
+    isGenerating.value = true
+
+    const isGroup = activeSession.value?.isGroupChat && (activeSession.value?.characterIds?.length ?? 0) > 0
+
+    if (isGroup) {
+      await sendGroupMessage(text.trim(), connection, preset)
+      return
+    }
+
     // Add user message
     addMessage('user', text.trim())
 
     // Add empty assistant message for streaming
     const assistantMsg = addMessage('assistant', '')
-
-    isGenerating.value = true
 
     // Build prompt using PromptBuilder
     const characterStore = useCharacterStore()
@@ -349,6 +356,155 @@ export const useChatStore = defineStore('chat', () => {
         await saveMessages()
       }
     )
+  }
+
+  async function sendGroupMessage(
+    text: string,
+    connection?: ConnectionConfig | null,
+    preset?: Partial<GenerationPreset> | null
+  ): Promise<void> {
+    const chat = activeSession.value
+    console.log('[GroupChat] Starting, chat:', chat?.id, 'characterIds:', chat?.characterIds)
+    if (!chat || !chat.characterIds?.length) {
+      error.value = '群聊没有绑定角色'
+      isGenerating.value = false
+      return
+    }
+
+    const settingsStore = useSettingsStore()
+    const conn = connection ?? settingsStore.activeConnection
+    if (!conn) {
+      error.value = '请先在设置中配置 API 连接'
+      isGenerating.value = false
+      return
+    }
+
+    const characterStore = useCharacterStore()
+    await characterStore.loadCharacters()
+    console.log('[GroupChat] Characters loaded:', characterStore.characters.length)
+
+    try {
+    // Resolve preset
+    const presetStore = await import('./preset')
+    const pStore = presetStore.usePresetStore()
+    console.log('[GroupChat] Presets loaded:', pStore.presets.length)
+    if (!pStore.isLoaded) await pStore.loadPresets()
+    const sessionPreset = chat.presetId
+      ? pStore.getPreset(chat.presetId)
+      : pStore.defaultPreset
+    const effectivePreset = preset ?? sessionPreset ?? { stream: true }
+    console.log('[GroupChat] Effective preset:', effectivePreset?.temperature)
+
+    // Add user message
+    addMessage('user', text.trim())
+    console.log('[GroupChat] User message added, count:', messages.value.length)
+    await saveMessages()
+    console.log('[GroupChat] Messages saved')
+
+    // Trigger speakers - check for @mentions first
+    const mentionRegex = /@(\S+)/g
+    let match
+    const mentionedNames: string[] = []
+    while ((match = mentionRegex.exec(text)) !== null) {
+      mentionedNames.push(match[1])
+    }
+
+    let speakers: typeof chat.characterIds
+    if (mentionedNames.length > 0) {
+      speakers = chat.characterIds.filter((id) => {
+        const c = characterStore.characters.find((ch) => ch.id === id)
+        return c && mentionedNames.some((n) => n.toLowerCase() === c.name.toLowerCase())
+      })
+      console.log('[GroupChat] @mentions:', mentionedNames, 'matched speakers:', speakers.length)
+    } else {
+      speakers = chat.characterIds
+    }
+
+    const spokeSet = new Set<string>()
+    console.log('[GroupChat] Starting loop, characterIds:', chat.characterIds)
+    for (const charId of speakers) {
+      console.log('[GroupChat] Processing charId:', charId)
+      if (!isGenerating.value) { console.log('[GroupChat] Not generating, break'); break }
+
+      const char = characterStore.characters.find((c) => c.id === charId)
+      if (!char) continue
+
+      const hasMentions = mentionedNames.length > 0
+      const speakerId = hasMentions
+        ? charId
+        : chat.groupChatMode === 'random'
+          ? chat.characterIds[Math.floor(Math.random() * chat.characterIds.length)]
+          : charId
+
+      if (spokeSet.has(speakerId) && chat.groupChatMode !== 'random') continue
+      spokeSet.add(speakerId)
+
+      const speaker = characterStore.characters.find((c) => c.id === speakerId)
+      if (!speaker) continue
+
+      const assistantMsg = addMessage('assistant', '')
+      assistantMsg.characterId = speakerId
+
+      const worldInfoEntries = await getWorldInfoEntries()
+      const personaStore = usePersonaStore()
+      await personaStore.loadPersonas()
+      const persona = settingsStore.settings.activePersonaId
+        ? personaStore.personas.find((p) => p.id === settingsStore.settings.activePersonaId) ?? null
+        : null
+
+      // Build prompt with speaker-labeled chat history
+      const buildMessages = messages.value.slice(0, -1).map((m) => {
+        if (m.role === 'assistant' && m.characterId && m.characterId !== speakerId) {
+          const c = characterStore.characters.find((ch) => ch.id === m.characterId)
+          return { ...m, content: `[${c?.name || 'Unknown'}]: ${m.content}` }
+        }
+        return m
+      })
+
+      const preview = buildPrompt({
+        character: speaker,
+        messages: buildMessages,
+        systemPromptOverride: speaker.system_prompt || `You are ${speaker.name}. ${speaker.personality ? `Personality: ${speaker.personality}. ` : ''}You are in a group chat. Respond in character as ${speaker.name}.`,
+        authorNote: authorNote.value,
+        contextSize: settingsStore.settings.contextSize,
+        maxResponseTokens: effectivePreset.max_tokens ?? 2048,
+        worldInfoEntries,
+        persona: persona ? { id: persona.id, name: persona.name, description: persona.description } : null,
+      })
+      lastPromptPreview.value = preview
+
+      console.log('[GroupChat] Generating response for:', speaker.name)
+
+      await new Promise<void>((resolve) => {
+        streamGenerate(
+          preview.messages,
+          effectivePreset,
+          conn,
+          (token) => { assistantMsg.content += token },
+          async (fullContent) => {
+            console.log('[GroupChat] Done for', speaker.name, 'content:', fullContent?.slice(0, 50))
+            assistantMsg.content = fullContent
+            await saveMessages()
+            resolve()
+          },
+          async (message) => {
+            console.error('[GroupChat] Error for', speaker.name, ':', message)
+            error.value = message
+            if (!assistantMsg.content) {
+              messages.value = messages.value.filter((m) => m.id !== assistantMsg.id)
+            }
+            await saveMessages()
+            resolve()
+          }
+        )
+      })
+    }
+
+    } catch (err) {
+      console.error('[GroupChat] Error:', err)
+      error.value = `群聊出错: ${(err as Error).message}`
+    }
+    isGenerating.value = false
   }
 
   async function regenerate(
