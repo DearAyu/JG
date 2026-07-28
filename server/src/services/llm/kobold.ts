@@ -53,7 +53,9 @@ export async function* generateKobold(req: GenerateRequest): AsyncGenerator<SSEC
     return
   }
 
-  const data = await response.json()
+  const data = (await response.json()) as {
+    results?: { text?: string }[]
+  }
   const content = data.results?.[0]?.text
   if (content) {
     yield { type: 'token', content }

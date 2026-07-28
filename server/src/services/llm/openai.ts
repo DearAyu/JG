@@ -53,8 +53,10 @@ export async function* generateOpenAI(req: GenerateRequest): AsyncGenerator<SSEC
     return
   }
 
-  if (!preset.stream || preset.stream === false) {
-    const data = await response.json()
+  if (preset.stream === false) {
+    const data = (await response.json()) as {
+      choices?: { message?: { content?: string } }[]
+    }
     const content = data.choices?.[0]?.message?.content
     if (content) {
       yield { type: 'token', content }

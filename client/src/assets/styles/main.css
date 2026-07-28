@@ -1,33 +1,71 @@
+@font-face {
+  font-family: 'JG Alibaba PuHuiTi';
+  src: url('/fonts/alibaba-puhuiti-regular.woff2') format('woff2');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'JG DingTalk JinBuTi';
+  src: url('/fonts/dingtalk-jinbuti-regular.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'JG LXGW WenKai';
+  src: url('/fonts/lxgw-wenkai-regular.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'JG Source Han Serif SC';
+  src: url('/fonts/source-han-serif-sc-regular.otf') format('opentype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-tertiary: #0f3460;
-  --text-primary: #e0e0e0;
-  --text-secondary: #a0a0a0;
-  --accent-color: #e94560;
-  --border-color: #2a2a4a;
-  --message-user-bg: #16213e;
-  --message-assistant-bg: #0f3460;
-  --font-size: 15px;
-  --font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --bg-primary: #f7f5f2;
+  --bg-secondary: #fdfcf9;
+  --bg-tertiary: #ede9e2;
+  --text-primary: #2b2926;
+  --text-secondary: #777169;
+  --accent-color: #b85c42;
+  --border-color: #ddd7ce;
+  --message-user-bg: #eee8df;
+  --message-assistant-bg: #fdfcf9;
+  --shadow-soft: 0 1px 2px rgb(43 41 38 / 4%);
+  --shadow-panel: 0 10px 30px rgb(74 65 54 / 6%);
+  --font-size: 16px;
+  --chat-font-size: 15px;
+  --font-family: 'JG Alibaba PuHuiTi', 'Microsoft YaHei', sans-serif;
 }
 
 :root.light {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --bg-tertiary: #e8e8e8;
-  --text-primary: #1a1a1a;
-  --text-secondary: #606060;
-  --accent-color: #e94560;
-  --border-color: #d0d0d0;
-  --message-user-bg: #e8f0fe;
-  --message-assistant-bg: #f0f0f0;
-  --font-size: 15px;
-  --font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --bg-primary: #f7f5f2;
+  --bg-secondary: #fdfcf9;
+  --bg-tertiary: #ede9e2;
+  --text-primary: #2b2926;
+  --text-secondary: #777169;
+  --accent-color: #b85c42;
+  --border-color: #ddd7ce;
+  --message-user-bg: #eee8df;
+  --message-assistant-bg: #fdfcf9;
+  --shadow-soft: 0 1px 2px rgb(43 41 38 / 4%);
+  --shadow-panel: 0 10px 30px rgb(74 65 54 / 6%);
+  --font-size: 16px;
+  --chat-font-size: 15px;
+  --font-family: 'JG Alibaba PuHuiTi', 'Microsoft YaHei', sans-serif;
 }
 
 * {
@@ -42,6 +80,54 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   overflow: hidden;
+}
+
+.chat-content-size {
+  font-size: var(--chat-font-size);
+}
+
+.font-size-slider {
+  width: 18rem;
+  height: 4px;
+  appearance: none;
+  border-radius: 9999px;
+  cursor: pointer;
+}
+
+.font-size-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.font-size-slider::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  appearance: none;
+  border: 2px solid var(--bg-secondary);
+  border-radius: 50%;
+  background: var(--accent-color);
+  box-shadow: 0 1px 3px rgb(43 41 38 / 18%);
+}
+
+.font-size-slider:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 4px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: Georgia, 'Songti SC', 'Noto Serif SC', serif;
+  letter-spacing: -0.015em;
+}
+
+button,
+input,
+select,
+textarea {
+  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 #app {

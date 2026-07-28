@@ -57,7 +57,7 @@ const preview = computed(() => {
     messages: chatStore.messages,
     authorNote: chatStore.authorNote,
     contextSize: settingsStore.settings.contextSize,
-    maxResponseTokens: 2048,
+    maxResponseTokens: settingsStore.settings.maxResponseTokens,
     worldInfoEntries: wiEntries.value,
     persona: currentPersona.value
       ? { id: currentPersona.value.id, name: currentPersona.value.name, description: currentPersona.value.description }

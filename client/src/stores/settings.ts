@@ -9,6 +9,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const settings = ref<AppSettings>({ ...defaultSettings })
   const activeConnection = ref<ConnectionConfig | null>(null)
   const isLoaded = ref(false)
+  const isLoadingConnections = ref(false)
+  const connectionsError = ref<string | null>(null)
 
   const defaultConnection = computed(() =>
     connections.value.find((c) => c.isDefault) ?? connections.value[0] ?? null
@@ -21,11 +23,17 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   async function loadConnections() {
+    isLoadingConnections.value = true
+    connectionsError.value = null
+
     try {
       connections.value = await api.getConnections()
       updateActiveConnection()
     } catch (e) {
+      connectionsError.value = (e as Error).message
       console.error('Failed to load connections:', e)
+    } finally {
+      isLoadingConnections.value = false
     }
   }
 
@@ -92,8 +100,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   async function updateSettings(data: Partial<AppSettings>) {
-    settings.value = { ...settings.value, ...data }
-    await api.updateSettings(data)
+    settings.value = await api.updateSettings(data)
   }
 
   return {
@@ -102,6 +109,8 @@ export const useSettingsStore = defineStore('settings', () => {
     activeConnection,
     defaultConnection,
     isLoaded,
+    isLoadingConnections,
+    connectionsError,
     loadAll,
     loadConnections,
     loadSettings,

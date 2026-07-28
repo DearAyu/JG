@@ -28,14 +28,16 @@ export async function* generateGemini(req: GenerateRequest): AsyncGenerator<SSEC
     parts: [{ text: m.content }],
   }))
 
+  const generationConfig: Record<string, unknown> = {
+    temperature: preset.temperature ?? 1.0,
+    maxOutputTokens: preset.max_tokens ?? 2048,
+    topP: preset.top_p ?? 1.0,
+    topK: preset.top_k ?? 0,
+  }
+
   const body: Record<string, unknown> = {
     contents,
-    generationConfig: {
-      temperature: preset.temperature ?? 1.0,
-      maxOutputTokens: preset.max_tokens ?? 2048,
-      topP: preset.top_p ?? 1.0,
-      topK: preset.top_k ?? 0,
-    },
+    generationConfig,
   }
 
   if (systemText) {
@@ -43,7 +45,7 @@ export async function* generateGemini(req: GenerateRequest): AsyncGenerator<SSEC
   }
 
   if (preset.stop?.length) {
-    body.generationConfig.stopSequences = preset.stop
+    generationConfig.stopSequences = preset.stop
   }
 
   const response = await fetch(endpoint, {
@@ -67,7 +69,9 @@ export async function* generateGemini(req: GenerateRequest): AsyncGenerator<SSEC
 
   // Non-streaming
   if (preset.stream === false) {
-    const data = await response.json()
+    const data = (await response.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[]
+    }
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text
     if (text) {
       yield { type: 'token', content: text }

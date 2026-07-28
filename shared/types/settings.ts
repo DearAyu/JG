@@ -12,6 +12,7 @@ export interface AppSettings {
   activeConnectionId: string | null
   activePersonaId: string | null
   contextSize: number
+  maxResponseTokens: number
   swipeCount: number
   autoScroll: boolean
   streamMessages: boolean
@@ -20,20 +21,36 @@ export interface AppSettings {
   compactMode: boolean
 }
 
+export const SYSTEM_FONT_FAMILY = "'Segoe UI', 'Microsoft YaHei', sans-serif"
+export const DEFAULT_FONT_FAMILY = "'JG Alibaba PuHuiTi', 'Microsoft YaHei', sans-serif"
+export const CONTEXT_SIZE_MIN = 1000
+export const CONTEXT_SIZE_MAX = 1000000
+export const MAX_RESPONSE_TOKENS_MIN = 100
+export const MAX_RESPONSE_TOKENS_MAX = 100000
+
+export const REMOVED_FONT_FAMILIES = [
+  "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
+  "'SimSun', 'Songti SC', serif",
+  "'SimHei', 'Heiti SC', sans-serif",
+  "'JG Source Han Sans SC', 'Microsoft YaHei', sans-serif",
+  "'JG Smiley Sans', 'Microsoft YaHei', sans-serif",
+] as const
+
 export const defaultSettings: AppSettings = {
-  theme: 'dark',
+  theme: 'light',
   fontSize: 15,
-  fontFamily: "'Segoe UI', 'Microsoft YaHei', sans-serif",
-  accentColor: '#e94560',
-  bgPrimary: '#1a1a2e',
-  bgSecondary: '#16213e',
-  bgTertiary: '#0f3460',
-  textColor: '#e0e0e0',
-  textSecondaryColor: '#a0a0a0',
-  borderColor: '#2a2a4a',
+  fontFamily: DEFAULT_FONT_FAMILY,
+  accentColor: '#b85c42',
+  bgPrimary: '#f7f5f2',
+  bgSecondary: '#fdfcf9',
+  bgTertiary: '#ede9e2',
+  textColor: '#2b2926',
+  textSecondaryColor: '#777169',
+  borderColor: '#ddd7ce',
   activeConnectionId: null,
   activePersonaId: null,
   contextSize: 8192,
+  maxResponseTokens: 2048,
   swipeCount: 1,
   autoScroll: true,
   streamMessages: true,

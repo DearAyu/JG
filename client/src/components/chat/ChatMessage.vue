@@ -82,7 +82,7 @@ function autoResize() {
           ref="textareaRef"
           v-model="editContent"
           rows="1"
-          class="w-full resize-none rounded border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
+          class="chat-content-size w-full resize-none rounded border border-border bg-bg-secondary px-3 py-2 text-text-primary outline-none focus:border-accent"
           @input="autoResize"
         />
         <div class="mt-2 flex justify-end gap-2">
@@ -126,10 +126,13 @@ function autoResize() {
         >
           <div
             v-if="!isEditing && message.content"
-            class="markdown-body break-words text-sm leading-relaxed"
+            class="chat-content-size markdown-body break-words leading-relaxed"
             v-html="renderedContent"
           ></div>
-          <p v-else-if="!message.content && !isGenerating" class="text-sm italic text-text-secondary">
+          <p
+            v-else-if="!message.content && !isGenerating"
+            class="chat-content-size italic text-text-secondary"
+          >
             (空消息)
           </p>
           <span

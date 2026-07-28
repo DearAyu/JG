@@ -152,7 +152,7 @@ function handleSearchKeydown(e: KeyboardEvent) {
   <div class="flex h-full flex-col overflow-hidden">
     <!-- Header -->
     <div
-      class="flex items-center justify-between border-b border-border bg-bg-secondary px-4 py-3"
+      class="flex h-12 shrink-0 items-center justify-between border-b border-border bg-bg-secondary px-4"
     >
         <div class="flex items-center gap-2">
           <h2 class="text-lg font-semibold text-text-primary">
@@ -240,7 +240,7 @@ function handleSearchKeydown(e: KeyboardEvent) {
       >
         <div class="text-6xl">💬</div>
         <p class="text-text-secondary">
-          {{ hasConnection ? '开始输入消息与 AI 对话吧！' : '请先前往设置配置 API 连接' }}
+          {{ hasConnection ? '开始输入消息与 AI 对话吧！' : '请先前往 API 连接页面添加连接' }}
         </p>
       </div>
 

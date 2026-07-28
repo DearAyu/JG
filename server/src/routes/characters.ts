@@ -89,7 +89,6 @@ router.post('/', (req, res) => {
   const body = req.body as Partial<Character>
   const now = Date.now()
   const char: Character = {
-    id: fileStore.generateId('char'),
     ...defaultCharacter(),
     ...body,
     id: fileStore.generateId('char'),

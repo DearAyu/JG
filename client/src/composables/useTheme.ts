@@ -13,14 +13,14 @@ const darkTheme = {
 }
 
 const lightTheme = {
-  bgPrimary: '#ffffff',
-  bgSecondary: '#f5f5f5',
-  bgTertiary: '#e8e8e8',
-  textColor: '#1a1a1a',
-  textSecondaryColor: '#606060',
-  borderColor: '#d0d0d0',
-  messageUserBg: '#e8f0fe',
-  messageAssistantBg: '#f0f0f0',
+  bgPrimary: '#f7f5f2',
+  bgSecondary: '#fdfcf9',
+  bgTertiary: '#ede9e2',
+  textColor: '#2b2926',
+  textSecondaryColor: '#777169',
+  borderColor: '#ddd7ce',
+  messageUserBg: '#eee8df',
+  messageAssistantBg: '#fdfcf9',
 }
 
 export function applyTheme(settings: AppSettings): void {
@@ -50,7 +50,7 @@ export function applyTheme(settings: AppSettings): void {
     })
   }
 
-  root.style.setProperty('--font-size', `${settings.fontSize}px`)
+  root.style.setProperty('--chat-font-size', `${settings.fontSize}px`)
   root.style.setProperty('--font-family', settings.fontFamily)
 
   if (settings.compactMode) {

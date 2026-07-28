@@ -275,7 +275,7 @@ export const useChatStore = defineStore('chat', () => {
     const conn = connection ?? settingsStore.activeConnection
 
     if (!conn) {
-      error.value = '请先在设置中配置 API 连接'
+      error.value = '请先在 API 连接页面添加连接'
       return
     }
 
@@ -292,6 +292,10 @@ export const useChatStore = defineStore('chat', () => {
       ? pStore.getPreset(activeSession.value.presetId)
       : pStore.defaultPreset
     const effectivePreset = preset ?? sessionPreset ?? { stream: true }
+    const generationPreset = {
+      ...effectivePreset,
+      max_tokens: settingsStore.settings.maxResponseTokens,
+    }
 
     error.value = null
 
@@ -329,7 +333,7 @@ export const useChatStore = defineStore('chat', () => {
       messages: messages.value.slice(0, -1),
       authorNote: authorNote.value,
       contextSize: settingsStore.settings.contextSize,
-      maxResponseTokens: effectivePreset.max_tokens ?? 2048,
+      maxResponseTokens: generationPreset.max_tokens,
       worldInfoEntries,
       persona: persona ? { id: persona.id, name: persona.name, description: persona.description } : null,
     })
@@ -337,7 +341,7 @@ export const useChatStore = defineStore('chat', () => {
 
     await streamGenerate(
       preview.messages,
-      effectivePreset,
+      generationPreset,
       conn,
       (token) => {
         assistantMsg.content += token
@@ -374,7 +378,7 @@ export const useChatStore = defineStore('chat', () => {
     const settingsStore = useSettingsStore()
     const conn = connection ?? settingsStore.activeConnection
     if (!conn) {
-      error.value = '请先在设置中配置 API 连接'
+      error.value = '请先在 API 连接页面添加连接'
       isGenerating.value = false
       return
     }
@@ -393,6 +397,10 @@ export const useChatStore = defineStore('chat', () => {
       ? pStore.getPreset(chat.presetId)
       : pStore.defaultPreset
     const effectivePreset = preset ?? sessionPreset ?? { stream: true }
+    const generationPreset = {
+      ...effectivePreset,
+      max_tokens: settingsStore.settings.maxResponseTokens,
+    }
     console.log('[GroupChat] Effective preset:', effectivePreset?.temperature)
 
     // Add user message
@@ -467,7 +475,7 @@ export const useChatStore = defineStore('chat', () => {
         systemPromptOverride: speaker.system_prompt || `You are ${speaker.name}. ${speaker.personality ? `Personality: ${speaker.personality}. ` : ''}You are in a group chat. Respond in character as ${speaker.name}.`,
         authorNote: authorNote.value,
         contextSize: settingsStore.settings.contextSize,
-        maxResponseTokens: effectivePreset.max_tokens ?? 2048,
+        maxResponseTokens: generationPreset.max_tokens,
         worldInfoEntries,
         persona: persona ? { id: persona.id, name: persona.name, description: persona.description } : null,
       })
@@ -478,7 +486,7 @@ export const useChatStore = defineStore('chat', () => {
       await new Promise<void>((resolve) => {
         streamGenerate(
           preview.messages,
-          effectivePreset,
+          generationPreset,
           conn,
           (token) => { assistantMsg.content += token },
           async (fullContent) => {
@@ -538,7 +546,7 @@ export const useChatStore = defineStore('chat', () => {
     const conn = connection ?? settingsStore.activeConnection
 
     if (!conn) {
-      error.value = '请先在设置中配置 API 连接'
+      error.value = '请先在 API 连接页面添加连接'
       return
     }
 
@@ -550,6 +558,10 @@ export const useChatStore = defineStore('chat', () => {
       ? pStore.getPreset(activeSession.value.presetId)
       : pStore.defaultPreset
     const effectivePreset = preset ?? sessionPreset ?? { stream: true }
+    const generationPreset = {
+      ...effectivePreset,
+      max_tokens: settingsStore.settings.maxResponseTokens,
+    }
 
     isGenerating.value = true
 
@@ -572,7 +584,7 @@ export const useChatStore = defineStore('chat', () => {
       messages: messages.value.slice(0, actualIdx),
       authorNote: authorNote.value,
       contextSize: settingsStore.settings.contextSize,
-      maxResponseTokens: effectivePreset.max_tokens ?? 2048,
+      maxResponseTokens: generationPreset.max_tokens,
       worldInfoEntries,
       persona: persona ? { id: persona.id, name: persona.name, description: persona.description } : null,
     })
@@ -580,7 +592,7 @@ export const useChatStore = defineStore('chat', () => {
 
     await streamGenerate(
       preview.messages,
-      effectivePreset,
+      generationPreset,
       conn,
       (token) => {
         lastAssistant.content += token

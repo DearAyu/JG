@@ -1,11 +1,34 @@
 import fs from 'fs'
 import path from 'path'
-import { fileURLToPath } from 'url'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+function getConfiguredDataDir(): string | null {
+  if (process.platform !== 'win32' || !process.env.APPDATA) return null
 
-const dataDir = path.resolve(__dirname, '../../data')
+  try {
+    const configPath = path.join(process.env.APPDATA, 'jg', 'storage-location.json')
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
+      version?: number
+      dataDir?: string
+    }
+    if (config.version !== 1 || !config.dataDir || !path.isAbsolute(config.dataDir)) return null
+    return config.dataDir
+  } catch {
+    return null
+  }
+}
+
+function resolveDataDir(): string {
+  const configuredDir = process.env.JG_DATA_DIR ?? getConfiguredDataDir()
+  if (configuredDir) return path.resolve(configuredDir)
+
+  if (process.platform === 'win32') {
+    throw new Error('JG 数据目录尚未配置，请先运行 npm run desktop:dev')
+  }
+
+  return path.resolve(process.cwd(), 'data')
+}
+
+const dataDir = resolveDataDir()
 
 function ensureDir(dir: string): void {
   if (!fs.existsSync(dir)) {

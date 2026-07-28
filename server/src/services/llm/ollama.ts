@@ -11,23 +11,25 @@ export async function* generateOllama(req: GenerateRequest): AsyncGenerator<SSEC
     content: m.content,
   }))
 
+  const options: Record<string, unknown> = {
+    temperature: preset.temperature ?? 0.8,
+    top_p: preset.top_p ?? 0.9,
+    top_k: preset.top_k ?? 40,
+    num_predict: preset.max_tokens ?? 2048,
+    frequency_penalty: preset.frequency_penalty ?? 0,
+    presence_penalty: preset.presence_penalty ?? 0,
+    repeat_penalty: preset.repetition_penalty ?? 1.1,
+  }
+
   const body: Record<string, unknown> = {
     model: connection.model,
     messages: mappedMessages,
     stream: preset.stream !== false,
-    options: {
-      temperature: preset.temperature ?? 0.8,
-      top_p: preset.top_p ?? 0.9,
-      top_k: preset.top_k ?? 40,
-      num_predict: preset.max_tokens ?? 2048,
-      frequency_penalty: preset.frequency_penalty ?? 0,
-      presence_penalty: preset.presence_penalty ?? 0,
-      repeat_penalty: preset.repetition_penalty ?? 1.1,
-    },
+    options,
   }
 
   if (preset.stop?.length) {
-    body.options.stop = preset.stop
+    options.stop = preset.stop
   }
 
   const response = await fetch(endpoint, {

@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "node dev-supervisor.cjs",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/server/src/index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

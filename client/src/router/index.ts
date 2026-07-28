@@ -33,6 +33,11 @@ const router = createRouter({
       component: () => import('@/views/PresetView.vue'),
     },
     {
+      path: '/connections',
+      name: 'connections',
+      component: () => import('@/views/ConnectionView.vue'),
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('@/views/SettingsView.vue'),

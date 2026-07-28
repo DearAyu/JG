@@ -39,7 +39,7 @@ const previewTokenCount = computed(() => {
     messages: chatStore.messages,
     authorNote: chatStore.authorNote,
     contextSize: settingsStore.settings.contextSize,
-    maxResponseTokens: currentPreset.value?.max_tokens ?? 2048,
+    maxResponseTokens: settingsStore.settings.maxResponseTokens,
   })
   return preview.totalTokens
 })

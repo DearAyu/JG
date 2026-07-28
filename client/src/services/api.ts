@@ -15,17 +15,35 @@ import type {
 const baseUrl = '/api'
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
+  let res: Response
+
+  try {
+    res = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    })
+  } catch {
+    throw new Error('无法连接本地服务，请稍候重试。')
+  }
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error(error.message || `HTTP ${res.status}`)
+    const errorText = await res.text()
+    let message = res.statusText
+
+    try {
+      message = JSON.parse(errorText).message || message
+    } catch {
+      if (errorText.trim()) message = errorText.trim()
+    }
+
+    if (res.status >= 500 && (!message || message === res.statusText)) {
+      message = '本地服务暂时不可用，请稍候重试。'
+    }
+
+    throw new Error(message || `HTTP ${res.status}`)
   }
 
   return res.json()
@@ -58,10 +76,25 @@ export const api = {
     request<ConnectionConfig>(`/connections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteConnection: (id: string) =>
     request<{ success: boolean }>(`/connections/${id}`, { method: 'DELETE' }),
+  testConnectionConfig: (data: Partial<ConnectionConfig>) =>
+    request<{ success: boolean; models: string[] }>('/connections/test', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   testConnection: (id: string) =>
-    request<{ success: boolean; models?: unknown }>(`/connections/${id}/test`, {
+    request<{ success: boolean; models: string[] }>(`/connections/${id}/test`, {
       method: 'POST',
     }),
+  testAllConnections: () =>
+    request<{
+      results: Array<{
+        id: string
+        name: string
+        success: boolean
+        models?: number
+        message?: string
+      }>
+    }>('/connections/test-all', { method: 'POST' }),
 
   // Settings
   getSettings: () => request<AppSettings>('/settings'),

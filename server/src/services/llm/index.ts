@@ -22,6 +22,7 @@ export async function* generateLLM(req: GenerateRequest): AsyncGenerator<SSEChun
 
   switch (type) {
     case 'openai':
+    case 'deepseek':
     case 'custom':
       yield* generateOpenAI(req)
       break

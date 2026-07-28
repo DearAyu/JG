@@ -97,14 +97,16 @@ function handleAction(extId: string, actionId: string) {
             </div>
           </div>
           <button
-            class="relative h-6 w-11 rounded-full transition-colors"
+            type="button"
+            class="relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors"
             :class="extStore.isEnabled(selectedExtension.id) ? 'bg-accent' : 'bg-bg-tertiary'"
             :style="extStore.isEnabled(selectedExtension.id) ? 'background: var(--accent-color)' : ''"
+            :aria-pressed="extStore.isEnabled(selectedExtension.id)"
             @click="handleToggle(selectedExtension.id)"
           >
             <span
-              class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
-              :class="extStore.isEnabled(selectedExtension.id) ? 'translate-x-5' : 'translate-x-0.5'"
+              class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
+              :class="extStore.isEnabled(selectedExtension.id) ? 'translate-x-5' : 'translate-x-0'"
             />
           </button>
         </div>
@@ -167,14 +169,16 @@ function handleAction(extId: string, actionId: string) {
                   <!-- Boolean -->
                   <button
                     v-else-if="setting.type === 'boolean'"
-                    class="relative h-6 w-11 rounded-full transition-colors"
+                    type="button"
+                    class="relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors"
                     :class="getSettingValue(selectedExtension.id, setting.key) ? 'bg-accent' : 'bg-bg-tertiary'"
                     :style="getSettingValue(selectedExtension.id, setting.key) ? 'background: var(--accent-color)' : ''"
+                    :aria-pressed="Boolean(getSettingValue(selectedExtension.id, setting.key))"
                     @click="handleSettingChange(selectedExtension.id, setting.key, !getSettingValue(selectedExtension.id, setting.key))"
                   >
                     <span
-                      class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
-                      :class="getSettingValue(selectedExtension.id, setting.key) ? 'translate-x-5' : 'translate-x-0.5'"
+                      class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
+                      :class="getSettingValue(selectedExtension.id, setting.key) ? 'translate-x-5' : 'translate-x-0'"
                     />
                   </button>
 

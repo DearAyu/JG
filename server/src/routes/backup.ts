@@ -2,6 +2,7 @@ import { Router } from 'express'
 import path from 'path'
 import fs from 'fs'
 import { fileStore } from '../services/file-store.js'
+import { loadConnections, replaceConnections } from '../services/connection-store.js'
 import type { AppSettings } from '../../../shared/types/settings.js'
 import type { ConnectionConfig } from '../../../shared/types/connection.js'
 import type { Character } from '../../../shared/types/character.js'
@@ -31,7 +32,11 @@ function collectAll(): BackupData {
     version: '1.0',
     exportedAt: Date.now(),
     settings: fileStore.readJson<AppSettings>(path.join(fileStore.dataDir, 'settings.json')),
-    connections: fileStore.readJson<ConnectionConfig[]>(path.join(fileStore.dataDir, 'connections.json')) ?? [],
+    connections: loadConnections().map((connection) => ({
+      ...connection,
+      apiKey: '',
+      hasApiKey: undefined,
+    })),
     characters: fileStore.listJson<Character>(path.join(fileStore.dataDir, 'characters')),
     chats: fileStore.listJson<ChatSession>(path.join(fileStore.dataDir, 'chats')),
     worldinfo: fileStore.listJson<WorldBook>(path.join(fileStore.dataDir, 'worldinfo')),
@@ -45,9 +50,12 @@ function restoreAll(data: BackupData): void {
   if (data.settings) {
     fileStore.writeJson(path.join(fileStore.dataDir, 'settings.json'), data.settings)
   }
-  for (const conn of data.connections || []) {
-    fileStore.writeJson(path.join(fileStore.dataDir, 'connections.json'), data.connections)
-  }
+  replaceConnections((data.connections || []).map((connection) => ({
+    ...connection,
+    verificationStatus: 'unverified',
+    lastVerifiedAt: undefined,
+    verificationMessage: undefined,
+  })))
   for (const char of data.characters || []) {
     fileStore.writeJson(path.join(fileStore.dataDir, 'characters', `${char.id}.json`), char)
   }

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { generateLLM, type GenerateRequest } from '../services/llm/index.js'
+import { getConnection } from '../services/connection-store.js'
 
 const router = Router()
 
@@ -8,6 +9,12 @@ router.post('/', async (req, res) => {
 
   if (!generateReq.connection) {
     res.status(400).json({ message: 'Connection config is required' })
+    return
+  }
+
+  const connection = getConnection(generateReq.connection.id)
+  if (!connection) {
+    res.status(404).json({ message: 'Connection not found' })
     return
   }
 
@@ -28,7 +35,7 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const generator = generateLLM(generateReq)
+    const generator = generateLLM({ ...generateReq, connection })
     for await (const chunk of generator) {
       sendSSE(chunk)
       if (chunk.type === 'done' || chunk.type === 'error') {

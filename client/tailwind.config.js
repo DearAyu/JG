@@ -27,6 +27,10 @@ export default {
       fontSize: {
         base: 'var(--font-size)',
       },
+      boxShadow: {
+        soft: 'var(--shadow-soft)',
+        panel: 'var(--shadow-panel)',
+      },
     },
   },
   plugins: [],

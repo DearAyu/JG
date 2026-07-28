@@ -1,124 +1,42 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import {
+  CONTEXT_SIZE_MAX,
+  CONTEXT_SIZE_MIN,
+  MAX_RESPONSE_TOKENS_MAX,
+  MAX_RESPONSE_TOKENS_MIN,
+  SYSTEM_FONT_FAMILY,
+} from '@shared/types'
+import { appFontPresets } from '@/services/app-fonts'
 import { useSettingsStore } from '@/stores/settings'
-import type { ConnectionConfig, ConnectionType } from '@shared/types'
 
 const settingsStore = useSettingsStore()
-
-const showAddForm = ref(false)
-const editingId = ref<string | null>(null)
-const formData = ref<Partial<ConnectionConfig>>({
-  name: '',
-  type: 'openai',
-  apiUrl: 'https://api.openai.com/v1',
-  apiKey: '',
-  model: 'gpt-4o',
-  isDefault: false,
-})
-const testResult = ref<{ success: boolean; message: string } | null>(null)
-const isTesting = ref(false)
+const contextSizeInput = ref('')
+const contextSizeError = ref('')
+const maxResponseTokensInput = ref('')
+const maxResponseTokensError = ref('')
 
 onMounted(async () => {
-  await settingsStore.loadAll()
+  await settingsStore.loadSettings()
+  contextSizeInput.value = String(settingsStore.settings.contextSize)
+  maxResponseTokensInput.value = String(settingsStore.settings.maxResponseTokens)
 })
 
-function startEdit(conn: ConnectionConfig) {
-  editingId.value = conn.id
-  formData.value = { ...conn }
-  showAddForm.value = true
-}
-
-function startAdd() {
-  editingId.value = null
-  formData.value = {
-    name: '',
-    type: 'openai',
-    apiUrl: 'https://api.openai.com/v1',
-    apiKey: '',
-    model: 'gpt-4o',
-    isDefault: settingsStore.connections.length === 0,
-  }
-  showAddForm.value = true
-}
-
-async function saveForm() {
-  if (!formData.value.name?.trim()) {
-    formData.value.name = 'New Connection'
-  }
-  if (editingId.value) {
-    await settingsStore.updateConnection(editingId.value, formData.value)
-  } else {
-    await settingsStore.createConnection(formData.value)
-  }
-  showAddForm.value = false
-  editingId.value = null
-}
-
-async function removeConnection(id: string) {
-  if (confirm('确定删除这个连接吗？')) {
-    await settingsStore.deleteConnection(id)
-  }
-}
-
-async function setDefault(id: string) {
-  await settingsStore.updateConnection(id, { isDefault: true })
-}
-
-async function setActive(id: string) {
-  await settingsStore.setActiveConnection(id)
-}
-
-async function testConn(id: string) {
-  isTesting.value = true
-  testResult.value = null
-  try {
-    const result = await settingsStore.updateConnection(id, {}).then(() =>
-      fetch('/api/connections/' + id + '/test', { method: 'POST' }).then((r) => r.json())
-    )
-    if (result.success) {
-      testResult.value = { success: true, message: '连接成功' }
-    } else {
-      testResult.value = { success: false, message: result.message || '连接失败' }
-    }
-  } catch (e) {
-    testResult.value = { success: false, message: (e as Error).message }
-  }
-  isTesting.value = false
-}
-
-async function setTheme(t: 'dark' | 'light' | 'custom') {
+async function setTheme(t: 'dark' | 'light') {
   await settingsStore.updateSettings({ theme: t })
 }
-
-const typeDefaults: Record<ConnectionType, { apiUrl: string; model: string; name: string }> = {
-  openai: { apiUrl: 'https://api.openai.com/v1', model: 'gpt-4o', name: 'OpenAI' },
-  claude: { apiUrl: 'https://api.anthropic.com', model: 'claude-sonnet-4-20250514', name: 'Claude' },
-  ollama: { apiUrl: 'http://localhost:11434', model: 'llama3.2', name: 'Ollama' },
-  gemini: { apiUrl: 'https://generativelanguage.googleapis.com', model: 'gemini-2.5-flash', name: 'Gemini' },
-  kobold: { apiUrl: 'http://localhost:5001', model: 'koboldcpp', name: 'KoboldAI' },
-  custom: { apiUrl: '', model: '', name: 'Custom' },
-}
-
-watch(
-  () => formData.value.type,
-  (newType, oldType) => {
-    if (!newType || newType === oldType) return
-    if (!editingId.value) {
-      const defaults = typeDefaults[newType]
-      if (defaults) {
-        formData.value.apiUrl = defaults.apiUrl
-        formData.value.model = defaults.model
-        if (!formData.value.name?.trim()) {
-          formData.value.name = defaults.name
-        }
-      }
-    }
-  }
-)
 
 async function updateFontSize(val: number) {
   await settingsStore.updateSettings({ fontSize: val })
 }
+
+const fontSizeSliderStyle = computed(() => {
+  const progress = ((settingsStore.settings.fontSize - 12) / 12) * 100
+
+  return {
+    background: `linear-gradient(to right, var(--accent-color) ${progress}%, var(--bg-tertiary) ${progress}%)`,
+  }
+})
 
 async function updateAccentColor(val: string) {
   await settingsStore.updateSettings({ accentColor: val })
@@ -128,8 +46,49 @@ async function toggleSetting(key: 'autoScroll' | 'streamMessages' | 'glowMessage
   await settingsStore.updateSettings({ [key]: !settingsStore.settings[key] } as Record<string, unknown>)
 }
 
-async function updateContextSize(val: number) {
-  await settingsStore.updateSettings({ contextSize: val })
+function parseTokenInput(input: string, min: number, max: number): number | null {
+  const trimmed = input.trim()
+  if (!/^\d+$/.test(trimmed)) return null
+
+  const value = Number(trimmed)
+  return Number.isSafeInteger(value) && value >= min && value <= max ? value : null
+}
+
+async function saveContextSize() {
+  const value = parseTokenInput(contextSizeInput.value, CONTEXT_SIZE_MIN, CONTEXT_SIZE_MAX)
+  if (value === null) {
+    contextSizeError.value = `请输入 ${CONTEXT_SIZE_MIN}-${CONTEXT_SIZE_MAX} 之间的整数。`
+    return
+  }
+
+  try {
+    await settingsStore.updateSettings({ contextSize: value })
+    contextSizeInput.value = String(value)
+    contextSizeError.value = ''
+  } catch (error) {
+    contextSizeError.value = (error as Error).message
+  }
+}
+
+async function saveMaxResponseTokens() {
+  const value = parseTokenInput(
+    maxResponseTokensInput.value,
+    MAX_RESPONSE_TOKENS_MIN,
+    MAX_RESPONSE_TOKENS_MAX
+  )
+  if (value === null) {
+    maxResponseTokensError.value =
+      `请输入 ${MAX_RESPONSE_TOKENS_MIN}-${MAX_RESPONSE_TOKENS_MAX} 之间的整数。`
+    return
+  }
+
+  try {
+    await settingsStore.updateSettings({ maxResponseTokens: value })
+    maxResponseTokensInput.value = String(value)
+    maxResponseTokensError.value = ''
+  } catch (error) {
+    maxResponseTokensError.value = (error as Error).message
+  }
 }
 
 function handleExportSettings() {
@@ -157,6 +116,8 @@ async function handleImportSettings(e: Event) {
     const text = await file.text()
     const data = JSON.parse(text)
     await settingsStore.updateSettings(data)
+    contextSizeInput.value = String(settingsStore.settings.contextSize)
+    maxResponseTokensInput.value = String(settingsStore.settings.maxResponseTokens)
   } catch (err) {
     alert(`导入失败: ${(err as Error).message}`)
   }
@@ -188,7 +149,7 @@ async function handleRestoreBackup(e: Event) {
     })
     const json = await result.json()
     if (json.success) {
-      alert('数据恢复成功，请刷新页面')
+      alert('数据恢复成功。出于安全考虑，备份不包含 API Key，请重新填写后再使用连接。')
       window.location.reload()
     } else {
       alert(json.message || '恢复失败')
@@ -199,15 +160,13 @@ async function handleRestoreBackup(e: Event) {
   target.value = ''
 }
 
-const isActive = computed(
-  () => (id: string) => settingsStore.activeConnection?.id === id
-)
-
 const fontPresets = [
-  { label: '系统默认', value: "'Segoe UI', 'Microsoft YaHei', sans-serif" },
-  { label: '等宽', value: "'Cascadia Code', 'Fira Code', 'Consolas', monospace" },
-  { label: '宋体', value: "'SimSun', 'Songti SC', serif" },
-  { label: '黑体', value: "'SimHei', 'Heiti SC', sans-serif" },
+  ...appFontPresets,
+  {
+    label: '系统默认',
+    value: SYSTEM_FONT_FAMILY,
+    description: 'Segoe UI + 微软雅黑',
+  },
 ]
 
 async function setFontFamily(val: string) {
@@ -225,14 +184,6 @@ const colorPresets = [
   { name: '靛蓝', value: '#6366f1' },
 ]
 
-const typeLabels: Record<string, string> = {
-  openai: 'OpenAI',
-  claude: 'Claude',
-  ollama: 'Ollama',
-  gemini: 'Gemini',
-  kobold: 'KoboldAI',
-  custom: '自定义',
-}
 </script>
 
 <template>
@@ -245,6 +196,7 @@ const typeLabels: Record<string, string> = {
           <input ref="backupFileInput" type="file" accept=".json" class="hidden" @change="handleRestoreBackup" />
           <button
             class="rounded-lg border border-border px-3 py-1.5 text-xs text-text-secondary hover:bg-bg-tertiary"
+            title="为安全起见，备份文件不包含 API Key"
             @click="handleBackupAll"
           >
             📦 备份全部
@@ -271,7 +223,7 @@ const typeLabels: Record<string, string> = {
       </div>
 
       <!-- Appearance -->
-      <section class="mb-6 rounded-lg border border-border bg-bg-secondary p-5">
+      <section class="mb-6 rounded-xl border border-border bg-bg-secondary p-5 shadow-panel">
         <h2 class="mb-4 text-lg font-semibold text-text-primary">外观</h2>
 
         <!-- Theme mode -->
@@ -282,7 +234,6 @@ const typeLabels: Record<string, string> = {
               v-for="t in [
                 { key: 'dark', label: '🌙 深色' },
                 { key: 'light', label: '☀️ 浅色' },
-                { key: 'custom', label: '🎨 自定义' },
               ]"
               :key="t.key"
               class="rounded-lg border px-4 py-2 text-sm transition-colors"
@@ -291,7 +242,7 @@ const typeLabels: Record<string, string> = {
                   ? 'border-accent text-text-primary'
                   : 'border-border text-text-secondary hover:bg-bg-tertiary'
               "
-              @click="setTheme(t.key as 'dark' | 'light' | 'custom')"
+              @click="setTheme(t.key as 'dark' | 'light')"
             >
               {{ t.label }}
             </button>
@@ -311,69 +262,21 @@ const typeLabels: Record<string, string> = {
               @click="updateAccentColor(color.value)"
               :title="color.name"
             />
-            <input
-              type="color"
-              :value="settingsStore.settings.accentColor"
-              class="h-8 w-8 cursor-pointer rounded border border-border bg-transparent"
-              @input="updateAccentColor(($event.target as HTMLInputElement).value)"
-            />
-          </div>
-        </div>
-
-        <!-- Custom colors -->
-        <div v-if="settingsStore.settings.theme === 'custom'" class="mb-5 space-y-3 rounded-lg bg-bg-tertiary p-4">
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="mb-1 block text-xs text-text-secondary">背景主色</label>
-              <input
-                type="color"
-                :value="settingsStore.settings.bgPrimary"
-                class="h-8 w-full cursor-pointer rounded border border-border bg-transparent"
-                @input="settingsStore.updateSettings({ bgPrimary: ($event.target as HTMLInputElement).value })"
-              />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs text-text-secondary">背景次色</label>
-              <input
-                type="color"
-                :value="settingsStore.settings.bgSecondary"
-                class="h-8 w-full cursor-pointer rounded border border-border bg-transparent"
-                @input="settingsStore.updateSettings({ bgSecondary: ($event.target as HTMLInputElement).value })"
-              />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs text-text-secondary">背景三级</label>
-              <input
-                type="color"
-                :value="settingsStore.settings.bgTertiary"
-                class="h-8 w-full cursor-pointer rounded border border-border bg-transparent"
-                @input="settingsStore.updateSettings({ bgTertiary: ($event.target as HTMLInputElement).value })"
-              />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs text-text-secondary">边框色</label>
-              <input
-                type="color"
-                :value="settingsStore.settings.borderColor"
-                class="h-8 w-full cursor-pointer rounded border border-border bg-transparent"
-                @input="settingsStore.updateSettings({ borderColor: ($event.target as HTMLInputElement).value })"
-              />
-            </div>
           </div>
         </div>
 
         <!-- Font size -->
         <div class="mb-5">
           <label class="mb-2 block text-sm text-text-secondary">
-            字体大小: {{ settingsStore.settings.fontSize }}px
+            对话字体大小: {{ settingsStore.settings.fontSize }}px
           </label>
           <input
             type="range"
             min="12"
             max="24"
             :value="settingsStore.settings.fontSize"
-            class="w-full accent-current"
-            style="accent-color: var(--accent-color)"
+            class="font-size-slider block max-w-full"
+            :style="fontSizeSliderStyle"
             @input="updateFontSize(Number(($event.target as HTMLInputElement).value))"
           />
         </div>
@@ -392,6 +295,7 @@ const typeLabels: Record<string, string> = {
                   : 'border-border text-text-secondary hover:bg-bg-tertiary'
               "
               :style="{ fontFamily: font.value }"
+              :title="font.description"
               @click="setFontFamily(font.value)"
             >
               {{ font.label }}
@@ -407,14 +311,16 @@ const typeLabels: Record<string, string> = {
               <p class="text-xs text-text-secondary">减少消息间距和内边距</p>
             </div>
             <button
-              class="relative h-6 w-11 rounded-full transition-colors"
+              type="button"
+              class="relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors"
               :class="settingsStore.settings.compactMode ? 'bg-accent' : 'bg-bg-tertiary'"
               :style="settingsStore.settings.compactMode ? 'background: var(--accent-color)' : ''"
+              :aria-pressed="settingsStore.settings.compactMode"
               @click="toggleSetting('compactMode')"
             >
               <span
-                class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
-                :class="settingsStore.settings.compactMode ? 'translate-x-5' : 'translate-x-0.5'"
+                class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
+                :class="settingsStore.settings.compactMode ? 'translate-x-5' : 'translate-x-0'"
               />
             </button>
           </div>
@@ -425,14 +331,16 @@ const typeLabels: Record<string, string> = {
               <p class="text-xs text-text-secondary">消息出现时的淡入动画</p>
             </div>
             <button
-              class="relative h-6 w-11 rounded-full transition-colors"
+              type="button"
+              class="relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors"
               :class="settingsStore.settings.messageAnimation ? 'bg-accent' : 'bg-bg-tertiary'"
               :style="settingsStore.settings.messageAnimation ? 'background: var(--accent-color)' : ''"
+              :aria-pressed="settingsStore.settings.messageAnimation"
               @click="toggleSetting('messageAnimation')"
             >
               <span
-                class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
-                :class="settingsStore.settings.messageAnimation ? 'translate-x-5' : 'translate-x-0.5'"
+                class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
+                :class="settingsStore.settings.messageAnimation ? 'translate-x-5' : 'translate-x-0'"
               />
             </button>
           </div>
@@ -443,14 +351,16 @@ const typeLabels: Record<string, string> = {
               <p class="text-xs text-text-secondary">收到新消息时自动滚动到底部</p>
             </div>
             <button
-              class="relative h-6 w-11 rounded-full transition-colors"
+              type="button"
+              class="relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors"
               :class="settingsStore.settings.autoScroll ? 'bg-accent' : 'bg-bg-tertiary'"
               :style="settingsStore.settings.autoScroll ? 'background: var(--accent-color)' : ''"
+              :aria-pressed="settingsStore.settings.autoScroll"
               @click="toggleSetting('autoScroll')"
             >
               <span
-                class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
-                :class="settingsStore.settings.autoScroll ? 'translate-x-5' : 'translate-x-0.5'"
+                class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
+                :class="settingsStore.settings.autoScroll ? 'translate-x-5' : 'translate-x-0'"
               />
             </button>
           </div>
@@ -458,25 +368,57 @@ const typeLabels: Record<string, string> = {
       </section>
 
       <!-- Generation Settings -->
-      <section class="mb-6 rounded-lg border border-border bg-bg-secondary p-5">
+      <section class="mb-6 rounded-xl border border-border bg-bg-secondary p-5 shadow-panel">
         <h2 class="mb-4 text-lg font-semibold text-text-primary">生成设置</h2>
 
         <div class="mb-4">
-          <label class="mb-2 block text-sm text-text-secondary">
-            上下文长度: {{ settingsStore.settings.contextSize }} tokens
+          <label class="mb-2 block text-sm text-text-secondary" for="context-size">
+            上下文长度
           </label>
-          <select
-            :value="settingsStore.settings.contextSize"
-            class="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-text-primary outline-none"
-            @change="updateContextSize(Number(($event.target as HTMLSelectElement).value))"
-          >
-            <option :value="4096">4096</option>
-            <option :value="8192">8192</option>
-            <option :value="16384">16384</option>
-            <option :value="32768">32768</option>
-            <option :value="65536">65536</option>
-            <option :value="128000">128000</option>
-          </select>
+          <div class="relative">
+            <input
+              id="context-size"
+              v-model="contextSizeInput"
+              type="text"
+              inputmode="numeric"
+              class="w-full rounded-lg border bg-bg-primary px-3 py-2 pr-16 text-text-primary outline-none"
+              :class="contextSizeError ? 'border-red-400' : 'border-border focus:border-accent'"
+              :aria-invalid="Boolean(contextSizeError)"
+              placeholder="请输入1000-1000000"
+              @blur="saveContextSize"
+              @keydown.enter="($event.target as HTMLInputElement).blur()"
+            />
+            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-secondary">
+              Token
+            </span>
+          </div>
+          <p v-if="contextSizeError" class="mt-1 text-xs text-red-500">{{ contextSizeError }}</p>
+        </div>
+
+        <div class="mb-4">
+          <label class="mb-2 block text-sm text-text-secondary" for="max-response-tokens">
+            最大回复长度
+          </label>
+          <div class="relative">
+            <input
+              id="max-response-tokens"
+              v-model="maxResponseTokensInput"
+              type="text"
+              inputmode="numeric"
+              class="w-full rounded-lg border bg-bg-primary px-3 py-2 pr-16 text-text-primary outline-none"
+              :class="maxResponseTokensError ? 'border-red-400' : 'border-border focus:border-accent'"
+              :aria-invalid="Boolean(maxResponseTokensError)"
+              placeholder="请输入100-100000"
+              @blur="saveMaxResponseTokens"
+              @keydown.enter="($event.target as HTMLInputElement).blur()"
+            />
+            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-secondary">
+              Token
+            </span>
+          </div>
+          <p v-if="maxResponseTokensError" class="mt-1 text-xs text-red-500">
+            {{ maxResponseTokensError }}
+          </p>
         </div>
 
         <div class="flex items-center justify-between">
@@ -485,205 +427,33 @@ const typeLabels: Record<string, string> = {
             <p class="text-xs text-text-secondary">逐 token 显示 AI 回复</p>
           </div>
           <button
-            class="relative h-6 w-11 rounded-full transition-colors"
+            type="button"
+            class="relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors"
             :class="settingsStore.settings.streamMessages ? 'bg-accent' : 'bg-bg-tertiary'"
             :style="settingsStore.settings.streamMessages ? 'background: var(--accent-color)' : ''"
+            :aria-pressed="settingsStore.settings.streamMessages"
             @click="toggleSetting('streamMessages')"
           >
             <span
-              class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
-              :class="settingsStore.settings.streamMessages ? 'translate-x-5' : 'translate-x-0.5'"
+              class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
+              :class="settingsStore.settings.streamMessages ? 'translate-x-5' : 'translate-x-0'"
             />
           </button>
         </div>
       </section>
 
-      <!-- Connections -->
-      <section class="mb-6 rounded-lg border border-border bg-bg-secondary p-5">
-        <div class="mb-4 flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-text-primary">API 连接</h2>
-          <button
-            class="rounded-lg bg-accent px-4 py-2 text-white hover:opacity-80"
-            style="background: var(--accent-color)"
-            @click="startAdd"
-          >
-            + 新建连接
-          </button>
-        </div>
-
-        <div v-if="settingsStore.connections.length === 0" class="py-8 text-center text-text-secondary">
-          还没有连接配置，点击"新建连接"添加一个 API
-        </div>
-
-        <div v-else class="space-y-3">
-          <div
-            v-for="conn in settingsStore.connections"
-            :key="conn.id"
-            class="rounded-lg border border-border bg-bg-tertiary p-4"
-          >
-            <div class="flex items-center justify-between">
-              <div class="flex-1">
-                <div class="flex items-center gap-2">
-                  <span class="font-medium text-text-primary">{{ conn.name }}</span>
-                  <span
-                    v-if="conn.isDefault"
-                    class="rounded bg-accent px-2 py-0.5 text-xs text-white"
-                    style="background: var(--accent-color)"
-                    >默认</span
-                  >
-                  <span
-                    v-if="isActive(conn.id)"
-                    class="rounded bg-green-600 px-2 py-0.5 text-xs text-white"
-                    >活跃</span
-                  >
-                </div>
-                <div class="mt-1 text-sm text-text-secondary">
-                  {{ typeLabels[conn.type] || conn.type }} · {{ conn.model }}
-                </div>
-                <div class="text-xs text-text-secondary">
-                  {{ conn.apiUrl }}
-                </div>
-              </div>
-              <div class="flex gap-2">
-                <button
-                  class="rounded px-3 py-1 text-sm text-text-secondary hover:bg-bg-primary"
-                  @click="testConn(conn.id)"
-                  :disabled="isTesting"
-                >
-                  测试
-                </button>
-                <button
-                  class="rounded px-3 py-1 text-sm text-text-secondary hover:bg-bg-primary"
-                  @click="setActive(conn.id)"
-                  v-if="!isActive(conn.id)"
-                >
-                  设为活跃
-                </button>
-                <button
-                  class="rounded px-3 py-1 text-sm text-text-secondary hover:bg-bg-primary"
-                  @click="setDefault(conn.id)"
-                  v-if="!conn.isDefault"
-                >
-                  设为默认
-                </button>
-                <button
-                  class="rounded px-3 py-1 text-sm text-text-secondary hover:bg-bg-primary"
-                  @click="startEdit(conn)"
-                >
-                  编辑
-                </button>
-                <button
-                  class="rounded px-3 py-1 text-sm text-red-400 hover:bg-bg-primary"
-                  @click="removeConnection(conn.id)"
-                >
-                  删除
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="testResult"
-          class="mt-3 rounded-lg p-3 text-sm"
-          :class="testResult.success ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'"
+      <footer class="pb-2 text-center text-xs text-text-secondary">
+        图标由
+        <a
+          class="underline decoration-border underline-offset-2 hover:text-text-primary"
+          href="https://icons8.com"
+          rel="noopener noreferrer"
+          target="_blank"
         >
-          {{ testResult.message }}
-        </div>
-      </section>
-
-      <!-- Connection Form Modal -->
-      <div
-        v-if="showAddForm"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="showAddForm = false"
-      >
-        <div class="w-full max-w-lg rounded-lg border border-border bg-bg-secondary p-6">
-          <h3 class="mb-4 text-lg font-semibold text-text-primary">
-            {{ editingId ? '编辑连接' : '新建连接' }}
-          </h3>
-
-          <div class="space-y-4">
-            <div>
-              <label class="mb-1 block text-sm text-text-secondary">名称</label>
-              <input
-                v-model="formData.name"
-                class="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-text-primary outline-none focus:border-accent"
-                placeholder="My OpenAI"
-              />
-            </div>
-
-            <div>
-              <label class="mb-1 block text-sm text-text-secondary">API 类型</label>
-              <select
-                v-model="formData.type"
-                class="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-text-primary outline-none"
-              >
-                <option value="openai">OpenAI / OpenAI 兼容</option>
-                <option value="claude">Claude (Anthropic 原生 API)</option>
-                <option value="ollama">Ollama (本地)</option>
-                <option value="gemini">Google Gemini</option>
-                <option value="kobold">KoboldAI / KoboldCpp</option>
-                <option value="custom">自定义 (OpenAI 兼容)</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="mb-1 block text-sm text-text-secondary">API URL</label>
-              <input
-                v-model="formData.apiUrl"
-                class="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-text-primary outline-none focus:border-accent"
-                placeholder="https://api.openai.com/v1"
-              />
-            </div>
-
-            <div>
-              <label class="mb-1 block text-sm text-text-secondary">API Key</label>
-              <input
-                v-model="formData.apiKey"
-                type="password"
-                class="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-text-primary outline-none focus:border-accent"
-                placeholder="sk-..."
-              />
-            </div>
-
-            <div>
-              <label class="mb-1 block text-sm text-text-secondary">模型</label>
-              <input
-                v-model="formData.model"
-                class="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-text-primary outline-none focus:border-accent"
-                placeholder="gpt-4o"
-              />
-            </div>
-
-            <div class="flex items-center gap-2">
-              <input
-                v-model="formData.isDefault"
-                type="checkbox"
-                id="isDefault"
-                class="h-4 w-4"
-              />
-              <label for="isDefault" class="text-sm text-text-secondary">设为默认连接</label>
-            </div>
-          </div>
-
-          <div class="mt-6 flex justify-end gap-3">
-            <button
-              class="rounded-lg border border-border px-4 py-2 text-text-secondary hover:bg-bg-tertiary"
-              @click="showAddForm = false"
-            >
-              取消
-            </button>
-            <button
-              class="rounded-lg px-4 py-2 text-white hover:opacity-80"
-              style="background: var(--accent-color)"
-              @click="saveForm"
-            >
-              保存
-            </button>
-          </div>
-        </div>
-      </div>
+          Icons8
+        </a>
+        提供
+      </footer>
     </div>
   </div>
 </template>

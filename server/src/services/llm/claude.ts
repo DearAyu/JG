@@ -61,8 +61,10 @@ export async function* generateClaude(req: GenerateRequest): AsyncGenerator<SSEC
   }
 
   // Non-streaming
-  if (!preset.stream || preset.stream === false) {
-    const data = await response.json()
+  if (preset.stream === false) {
+    const data = (await response.json()) as {
+      content?: { text?: string }[]
+    }
     const content = data.content?.[0]?.text
     if (content) {
       yield { type: 'token', content }
